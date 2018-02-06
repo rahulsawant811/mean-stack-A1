@@ -2,13 +2,13 @@ const express = require("express");
 const app = express();
 const morgan = require("morgan");
 const mongoose = require("mongoose");
-const User = require('./app/models/user');
-const bodyParser = require('body-parser');
+const bodyParser = require("body-parser");
+const cors = require('cors');
+const path = require('path');
 
-app.use(morgan('dev'));
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({extended: true}));
+const apiRoute = require("./app/routes/api");
 
+// mongoose.Promise = global.Promise;
 mongoose.connect("mongodb://localhost:27017/mean-app", (err) => {
     if(err){
         console.log("Error: "+ err);
@@ -17,28 +17,31 @@ mongoose.connect("mongodb://localhost:27017/mean-app", (err) => {
     }
 });
 
-app.post('/users', (req, res) => {
-    let user = new User({
-        username: req.body.username,
-        password: req.body.password,
-        email: req.body.email
-    });
+app.use(morgan('dev'));
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({extended: true}));
+app.use(cors());
+app.use(express.static(__dirname + '/public'));
 
-    if(
-        req.body.username == null || req.body.username == '' ||
-        req.body.password == null || req.body.password == '' ||
-        req.body.email == null || req.body.email == ''
-    ){
-        res.send("Ensure username, password and email were provided");
-    } else {
-        user.save(function(err){
-            if(err){
-                res.send('Username or email already exists');
-            } else {
-                res.send("User created successfully");
-            }
-        });
+app.use('/api', apiRoute);
+
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname + "/public/app/views/index.html"));
+});
+
+app.use((req, res, next) => {
+  const error = new Error('Not Found');
+  error.status = 404;
+  next(error);
+});
+
+app.use((error, req, res, next) => {
+  res.status(error.status || 500);
+  res.json({
+    error: {
+      msg: error.message
     }
+  });
 });
 
 const port = process.env.PORT || 3000;
